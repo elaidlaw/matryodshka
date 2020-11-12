@@ -67,7 +67,6 @@ def bilinear_wrapper2(imgs, coords):
     return resample(imgs, coords)
 
 def sphere_resample(image, pixels):
-  print(pixels.get_shape().as_list())
 
   batch_size, _, n_vertex, _ = pixels.get_shape().as_list()
   _, height, width, channels = image.get_shape().as_list()
@@ -80,7 +79,6 @@ def sphere_resample(image, pixels):
   x, y = tf.unstack(pixels, axis=1)
   x = tf.reshape(x, [-1])
   y = tf.reshape(y, [-1])
-
   # Four corners
   x = x
   y = y

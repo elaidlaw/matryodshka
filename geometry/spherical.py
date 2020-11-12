@@ -125,7 +125,7 @@ def backproject_spherical(S, T, depth, intrinsics):
     cosT = tf.cos(T)
     x = depth * (tf.cos(S) * cosT)
     y = depth * tf.sin(T)
-    z = -depth * (tf.sin(S) * cosT) #Q: why negation here? does it make a difference? test it out
+    z = depth * (tf.sin(S) * cosT) #Q: why negation here? does it make a difference? test it out
     return x, y, z
 
 def backproject_planar(S, T, depth, intrinsics):
@@ -221,6 +221,50 @@ def project_ods(points, order, pose, intrinsics, width, height):
     # Return
     uv = tf.stack([u, v], axis=-1)
     return uv
+
+def project_pro2(points, order, pose, intrinsics, width, height):
+    if tf.is_tensor(points):
+        y = points[:,:1,:]
+        x = points[:,1:2,:]
+        z = points[:,2:,:]
+    else:
+        y, x, z = points
+
+    x = x * 1000
+    y = y * 1000
+    z = z * 1000
+
+    # with tf.Session() as sess:
+    #     print(sess.run(pose))
+
+    cam = (tf.round((((tf.atan2(z, y) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi / 6)) + (0.5 * order) + -1.5) + 6) % 6
+    # with tf.Session() as sess:
+    #     print(sess.run(cam)[0, 0, :])
+
+    one_hot = tf.one_hot(tf.cast(cam, tf.uint8), 6)
+
+    cam_x = tf.tensordot(tf.squeeze(tf.slice(pose, [0, 0, 0, 3], [1, 6, 1, 1])), one_hot, [[0], [3]])
+    cam_y = tf.tensordot(tf.squeeze(tf.slice(pose, [0, 0, 1, 3], [1, 6, 1, 1])), one_hot, [[0], [3]])
+    cam_z = tf.tensordot(tf.squeeze(tf.slice(pose, [0, 0, 2, 3], [1, 6, 1, 1])), one_hot, [[0], [3]])
+
+    dir_x = x - cam_x
+    dir_y = y - cam_y
+    dir_z = z - cam_z
+
+    dot = x * cam_x + y * cam_y + z * cam_z
+    # with tf.Session() as sess:
+    #     print(sess.run(z)[0, 160, :])
+    #     print(sess.run(cam_z)[0, 160, :])
+
+    u = (((tf.atan2(dir_z, dir_y) / (2 * np.pi)) + 0.5) % 1) * (width - 1)
+    v = ((tf.atan2(dir_x, tf.sqrt(dir_y * dir_y + dir_z * dir_z)) / np.pi + 0.5) % 1) * (height - 1)
+    u = tf.tile(tf.expand_dims(u, 3), [1, 1, 1, 6]) * one_hot
+    v = tf.tile(tf.expand_dims(v, 3), [1, 1, 1, 6]) * one_hot
+
+    uv = tf.stack([u, v], axis=-1)
+    uv = tf.transpose(uv, [0, 3, 1, 2, 4])
+    return uv
+
 
 def project_spherical(points, order, pose, intrinsics, width, height):
     # TODO: pixel shift for converting to uv

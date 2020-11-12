@@ -398,7 +398,7 @@ def create_loader_from_flags(cameras_glob='train/????????????????.txt',
   parallelism = 10
 
   assert tf.gfile.Glob(cameras_glob)
-  if FLAGS.input_type == 'ODS':
+  if FLAGS.input_type == 'ODS' or FLAGS.input_type == 'PRO2':
       if training :
           files = tf.data.Dataset.list_files(cameras_glob, True)
       else:
