@@ -17,6 +17,8 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_graphics.geometry.transformation as tfgt
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 def tf_random_rotation(rc, tc, angle_range=[-0.03, 0.03], offset_range=[-0.01, 0.01]):
     '''
@@ -171,7 +173,7 @@ def project_ods(points, order, pose, intrinsics, width, height):
 
     if tf.is_tensor(points):
         x = points[:,:1,:]
-        y = - points[:,1:2,:]
+        y = points[:,1:2,:]
         z = points[:,2:,:]
     else:
         x, y, z = points
@@ -231,15 +233,11 @@ def project_pro2(points, order, pose, intrinsics, width, height):
         y, x, z = points
 
     x = x * 1000
-    y = y * 1000
+    y = -y * 1000
     z = z * 1000
 
-    # with tf.Session() as sess:
-    #     print(sess.run(pose))
 
-    cam = (tf.round((((tf.atan2(z, y) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi / 6)) + (0.5 * order) + -1.5) + 6) % 6
-    # with tf.Session() as sess:
-    #     print(sess.run(cam)[0, 0, :])
+    cam = (tf.round((((tf.atan2(z, y) + 2 * np.pi) % (2 * np.pi)) / (2 * np.pi / 6)) + (0.5 * order) - 1.5) + 6) % 6
 
     one_hot = tf.one_hot(tf.cast(cam, tf.uint8), 6)
 
@@ -251,18 +249,14 @@ def project_pro2(points, order, pose, intrinsics, width, height):
     dir_y = y - cam_y
     dir_z = z - cam_z
 
-    dot = x * cam_x + y * cam_y + z * cam_z
-    # with tf.Session() as sess:
-    #     print(sess.run(z)[0, 160, :])
-    #     print(sess.run(cam_z)[0, 160, :])
-
-    u = (((tf.atan2(dir_z, dir_y) / (2 * np.pi)) + 0.5) % 1) * (width - 1)
+    u = (1 - (((tf.atan2(dir_z, dir_y) / (2 * np.pi)) + .25) % 1)) * (width - 1)
     v = ((tf.atan2(dir_x, tf.sqrt(dir_y * dir_y + dir_z * dir_z)) / np.pi + 0.5) % 1) * (height - 1)
     u = tf.tile(tf.expand_dims(u, 3), [1, 1, 1, 6]) * one_hot
     v = tf.tile(tf.expand_dims(v, 3), [1, 1, 1, 6]) * one_hot
 
     uv = tf.stack([u, v], axis=-1)
     uv = tf.transpose(uv, [0, 3, 1, 2, 4])
+    uv = tf.concat([uv[:, :, :, int(0.25*width):, :], uv[:, :, :, :int(0.25*width), :]], 3)
     return uv
 
 

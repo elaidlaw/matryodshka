@@ -27,6 +27,7 @@ import homography
 import sampling
 import spherical
 import tensorflow_graphics.geometry.transformation as tfgt
+import matplotlib.pyplot as plt
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -184,18 +185,18 @@ def sweep_one(image, order, depths, pose, intrinsics, st_fun, backproj_fun, proj
             resampled = sampling.bilinear_wrapper2(image_tiled, pixel_coords)
             resampled = tf.transpose(resampled, [1, 2, 0, 3])
         else:
-            with tf.device('/gpu:1'):
+            with tf.device('/gpu:' + str(len(tf.config.experimental.list_physical_devices('GPU')) - 1)):
                 image_one = tf.slice(image, [i, 0, 0, 0, 0], [1, 6, height, width, channels])
                 resampled = tf.zeros([num_planes, height, width, channels])
                 for i in range(6):
                     image_tiled = tf.squeeze(tf.tile(tf.slice(image_one, [0, i, 0, 0, 0], [1, 1, height, width, channels]), [num_planes, 1, 1, 1, 1]))
                     pixel_coords_slice = tf.squeeze(tf.slice(pixel_coords, [0, i, 0, 0, 0], [num_planes, 1, height, width, 2]))
-                    # with tf.Session() as sess:
-                    #     print(sess.run(tf.tile(tf.cast(tf.greater(tf.reduce_sum(pixel_coords_slice, 3, keepdims=True), 0), tf.float32), [1, 1, 1, channels]))[0, 0, :, 0])
                     resampled_slice = sampling.bilinear_wrapper2(image_tiled, pixel_coords_slice) * tf.tile(tf.cast(tf.greater(tf.reduce_sum(pixel_coords_slice, 3, keepdims=True), 0), tf.float32), [1, 1, 1, channels])
                     resampled = resampled + resampled_slice
                 
                 resampled = tf.transpose(resampled, [1, 2, 0, 3])
+
+
 
         all_resampled.append(resampled)
 
